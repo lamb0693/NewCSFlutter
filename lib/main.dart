@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hello/login.dart';
+import 'package:flutter_hello/webrct.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
@@ -132,6 +133,11 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  void _moveToWebrtc() {
+    Navigator.push(context,
+        MaterialPageRoute(builder: (context) => WebrtcPage(title: "Webrtc")));
+  }
+
   void sendMessage() async {
 
   }
@@ -179,7 +185,11 @@ class _MyHomePageState extends State<MyHomePage> {
             children: [
               ElevatedButton(
                   onPressed: moveToLogin,
-                  child: const Icon(Icons.login))
+                  child: const Icon(Icons.login)),
+              ElevatedButton(
+                  onPressed: _moveToWebrtc,
+                  child: const Text('webrtc')
+              ),
             ],
           )
         ),
