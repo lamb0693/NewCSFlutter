@@ -10,7 +10,6 @@ import 'package:http/http.dart' as http;
 
 import 'board.dart';
 import 'board_list_view.dart';
-import 'lines.dart';
 import 'mypainter.dart';
 
 class WebrtcPage extends StatefulWidget {
@@ -45,7 +44,9 @@ class _WebrtcPage extends State<WebrtcPage> {
   @override
   void initState() {
 
-    painter = MyPainter(linesCSR, linesCustomer);
+    setState(() {
+      painter = MyPainter(linesCSR, linesCustomer);
+    });
 
     init();
 
@@ -184,20 +185,25 @@ class _WebrtcPage extends State<WebrtcPage> {
 
     socket.on('linesCSR', (dynamic lines) {
       print("on linesCSR $lines");
-      setState(() {
-        linesCSR = (lines as List<dynamic>).map<List<Map<String, double>>>((dynamic line) {
-          return (line as List<dynamic>).map<Map<String, double>>((dynamic point) {
-            return {
-              'x': (point['x'] as num).toDouble(), // Convert 'x' to double
-              'y': (point['y'] as num).toDouble(), // Convert 'y' to double
-            };
-          }).toList();
-        }).toList();
+       setState(() {
+          try {
+            linesCSR = (lines as List<dynamic>).map<List<Map<String, double>>>((dynamic line) {
+              return (line as List<dynamic>).map<Map<String, double>>((dynamic point) {
+                return {
+                  'x': (point['x'] as num).toDouble(),
+                  'y': (point['y'] as num).toDouble(),
+                };
+              }).toList();
+            }).toList();
+            print('>>>> lineCSR in Setting lineCSR : $linesCSR');
+          } catch (e) {
+            print('Error converting linesCSR: $e');
+          }
       });
     });
 
     socket.on('linesCustomer', (dynamic lines) {
-      print("on linesCustomer $lines");
+      print(" >>>> on linesCustomer $lines");
       setState(() {
         linesCustomer = (lines as List<dynamic>).map<List<Map<String, double>>>((dynamic line) {
           return (line as List<dynamic>).map<Map<String, double>>((dynamic point) {
@@ -207,20 +213,17 @@ class _WebrtcPage extends State<WebrtcPage> {
             };
           }).toList();
         }).toList();
+        print('>>>> lineCSR in Setting lineCustomer : $linesCustomer');
       });
     });
   }
 
   void _removePrev() {
-    setState(() {
-      linesCustomer.removeLast();
-    });
+    socket.emit('remove_prev_customer_line');
   }
 
   void _removeAll() {
-    setState(() {
-      linesCustomer = [];
-    });
+    socket.emit('remove_all_customer_line');
   }
 
   Future joinWebrtc() async {
@@ -406,21 +409,13 @@ class _WebrtcPage extends State<WebrtcPage> {
                     onPanEnd: (details) {
                       if (painter != null) {
                         painter.handleMouseUp();
-                        List<Map<String, double>> currentLine = painter.getCurrentLine();
-                        print('on mouse up :  $currentLine');
+                        List<Map<String, dynamic>> currentLine = painter.getCurrentLine();
+                        //print(' >>>> on mouse up :  $currentLine');
                         if(socket != null ) {
-                          //Line linesObject = Line(currentLine);
-                          String jsonLine = jsonEncode(currentLine);
-                          socket.emit('add_customer_line', jsonLine);
-                          painter.clearCurrentLine();
-
-                          //socket.emit('add_customer_line', currentLine );
+                          socket.emit('add_customer_line', {'line' : currentLine } );
                         };
-
+                        painter.clearCurrentLine();
                       }
-                      // setState(() {
-                      //   if (painter != null) linesCustomer = painter.linesCustomer;
-                      // });
                     },
                     child: CustomPaint(
                       size: Size(400, 200),

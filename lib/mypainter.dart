@@ -6,7 +6,7 @@ class MyPainter extends CustomPainter {
 
   MyPainter(this.linesCSR, this.linesCustomer);
 
-  List<Map<String, double>> currentLine = [];
+  List<Map<String, dynamic>> currentLine = [];
   bool isDrawing = false;
 
   @override
@@ -17,9 +17,9 @@ class MyPainter extends CustomPainter {
       ..color = Colors.black
       ..style = PaintingStyle.stroke;
 
-    print('canvas size $size');
-    canvas.drawLine(Offset(1.0, 1.0), Offset(100.0, 100.0), paint);
     print(' >>>> paint is called');
+    print(' >>>>linesCSR : $linesCSR');
+    print(' >>>>linesCustomer : $linesCustomer');
 
     // Draw lines based on the linesCSR data
     for (var line in linesCSR) {
@@ -47,7 +47,7 @@ class MyPainter extends CustomPainter {
         }
 
         var paint = Paint()
-          ..color = Colors.red
+          ..color = Colors.black
           ..style = PaintingStyle.stroke;
 
         canvas.drawPath(path, paint);
@@ -89,7 +89,7 @@ class MyPainter extends CustomPainter {
     currentLine = [];
   }
 
-  List<Map<String, double>> getCurrentLine() {
+  List<Map<String, dynamic>> getCurrentLine() {
     return currentLine;
   }
 
