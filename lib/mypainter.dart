@@ -72,19 +72,4 @@ class MyPainter extends CustomPainter {
   bool shouldRepaint(CustomPainter oldDelegate) {
     return true;
   }
-
-  // void handleMouseDown(Offset globalPosition) {
-  //   if (isDrawing) {
-  //     currentLine.add({'x': globalPosition.dx, 'y': globalPosition.dy});
-  //   }
-  // }
-  //
-  // void handleMouseMove(Offset globalPosition) {
-  //   currentLine.add({'x': globalPosition.dx, 'y': globalPosition.dy});
-  // }
-  //
-  // void handleMouseUp(){
-  //   isDrawing = false;
-  // }
-
 }

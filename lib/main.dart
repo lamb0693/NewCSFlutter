@@ -133,13 +133,56 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  void _moveToWebrtc() {
-    Navigator.push(context,
-        MaterialPageRoute(builder: (context) => WebrtcPage(title: "Webrtc")));
-  }
+  // void _moveToWebrtc() {
+  //   Navigator.push(context,
+  //       MaterialPageRoute(builder: (context) => WebrtcPage(title: "Webrtc")));
+  // }
 
   void sendMessage() async {
 
+    Map<String, dynamic> requestBody = {
+      'customerTel': storedTel,
+      'tel': storedTel,
+      'content' : 'TEXT',
+      'message' : _messageController.text,
+    };
+
+    try {
+      var response = await http.post(
+        Uri.parse('http://10.100.203.62:8080/api/board/create'),
+        headers: <String, String>{
+          'Authorization': 'Bearer:$storedAccessToken',
+        },
+        body: {
+          'customerTel': requestBody['customerTel'].toString(),
+          'tel': requestBody['tel'].toString(),
+          'message': requestBody['message'].toString(),
+          'content': requestBody['content'].toString()
+        },
+      );
+      print(response.body);
+      loadDataFromServer();
+    }
+    catch(e){
+      print(e);
+    }
+  }
+
+  // Add this function to reload data when returning from WebrtcPage
+  void returnFromWebrtc() {
+    loadDataFromServer();
+  }
+
+  void _moveToWebrtc() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => WebrtcPage(title: "Webrtc"),
+      ),
+    );
+
+    // This code will be executed when returning from WebrtcPage
+    returnFromWebrtc();
   }
 
   @override

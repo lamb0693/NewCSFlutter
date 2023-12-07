@@ -43,6 +43,7 @@ class _WebrtcPage extends State<WebrtcPage> {
   late MyPainter painter;
   bool isDrawing =false;
 
+
   @override
   void initState() {
 
@@ -138,6 +139,33 @@ class _WebrtcPage extends State<WebrtcPage> {
 
   void sendMessage() async {
 
+    Map<String, dynamic> requestBody = {
+      'customerTel': storedTel,
+      'tel': storedTel,
+      'content' : 'TEXT',
+      'message' : _messageController.text,
+    };
+
+    try {
+      var response = await http.post(
+        Uri.parse('http://10.100.203.62:8080/api/board/create'),
+        headers: <String, String>{
+          'Authorization': 'Bearer:$storedAccessToken',
+        },
+        body: {
+          'customerTel': requestBody['customerTel'].toString(),
+          'tel': requestBody['tel'].toString(),
+          'message': requestBody['message'].toString(),
+          'content': requestBody['content'].toString()
+        },
+      );
+      print(response.body);
+      loadDataFromServer();
+    }
+    catch(e){
+      print(e);
+    }
+
   }
 
   Future connectSocket() async{
@@ -183,39 +211,28 @@ class _WebrtcPage extends State<WebrtcPage> {
     //   _sendOffer();
     // });
 
-    socket.on('linesCSR', (dynamic lines) {
-      print("on linesCSR $lines");
-       setState(() {
-          try {
-            linesCSR = (lines as List<dynamic>).map<List<Map<String, double>>>((dynamic line) {
-              return (line as List<dynamic>).map<Map<String, double>>((dynamic point) {
-                return {
-                  'x': (point['x'] as num).toDouble(),
-                  'y': (point['y'] as num).toDouble(),
-                };
-              }).toList();
-            }).toList();
-            print('>>>> lineCSR in Setting lineCSR : $linesCSR');
-          } catch (e) {
-            print('Error converting linesCSR: $e');
-          }
+    socket.on('linesCSR', (lines) {
+      print(" >>>> on linesCSR $lines");
+
+      List<dynamic> decodedList = json.decode(lines);
+
+      // Convert the List<dynamic> to the desired List<List<Map<String, double>>> structure
+      List<List<Map<String, double>>> tempLinesCSR =
+      decodedList.map<List<Map<String, double>>>((line) {
+        return (line as List<dynamic>).map<Map<String, double>>((point) {
+          return {
+            'x': (point['x'] as num).toDouble(),
+            'y': (point['y'] as num).toDouble(),
+          };
+        }).toList();
+      }).toList();
+
+      print('tempLinesCSR : $tempLinesCSR' );
+
+      setState(() {
+        linesCSR = [...tempLinesCSR];
       });
     });
-
-    // socket.on('linesCustomer', (dynamic lines) {
-    //   print(" >>>> on linesCustomer $lines");
-    //   setState(() {
-    //     linesCustomer = (lines as List<dynamic>).map<List<Map<String, double>>>((dynamic line) {
-    //       return (line as List<dynamic>).map<Map<String, double>>((dynamic point) {
-    //         return {
-    //           'x': (point['x'] as num).toDouble(), // Convert 'x' to double
-    //           'y': (point['y'] as num).toDouble(), // Convert 'y' to double
-    //         };
-    //       }).toList();
-    //     }).toList();
-    //     print('>>>> lineCSR in Setting lineCustomer : $linesCustomer');
-    //   });
-    // });
   }
 
   void _removePrev() {
@@ -431,7 +448,7 @@ class _WebrtcPage extends State<WebrtcPage> {
                     },
                     child: CustomPaint(
                       size: Size(400, 200),
-                      painter: painter ?? MyPainter([], [], []),
+                      painter: painter ,
                     ),
                   ),
                 ),
