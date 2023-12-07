@@ -1,13 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class MyPainter extends CustomPainter {
   final List<List<Map<String, double>>> linesCSR;
   final List<List<Map<String, double>>> linesCustomer;
+  final List<Map<String, double>> currentLine;
 
-  MyPainter(this.linesCSR, this.linesCustomer);
-
-  List<Map<String, dynamic>> currentLine = [];
-  bool isDrawing = false;
+  MyPainter(this.linesCSR, this.linesCustomer, this.currentLine);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -17,9 +16,12 @@ class MyPainter extends CustomPainter {
       ..color = Colors.black
       ..style = PaintingStyle.stroke;
 
-    print(' >>>> paint is called');
-    print(' >>>>linesCSR : $linesCSR');
-    print(' >>>>linesCustomer : $linesCustomer');
+    if (kDebugMode) {
+      print(' >>>> paint is called');
+      print(' >>>>linesCSR : $linesCSR');
+      print(' >>>>linesCustomer : $linesCustomer');
+      print(' >>>>currentLine : $currentLine');
+    }
 
     // Draw lines based on the linesCSR data
     for (var line in linesCSR) {
@@ -71,26 +73,18 @@ class MyPainter extends CustomPainter {
     return true;
   }
 
-  void handleMouseDown(Offset globalPosition) {
-    if (isDrawing) {
-      currentLine.add({'x': globalPosition.dx, 'y': globalPosition.dy});
-    }
-  }
-
-  void handleMouseMove(Offset globalPosition) {
-    currentLine.add({'x': globalPosition.dx, 'y': globalPosition.dy});
-  }
-
-  void handleMouseUp(){
-    isDrawing = false;
-  }
-
-  void clearCurrentLine() {
-    currentLine = [];
-  }
-
-  List<Map<String, dynamic>> getCurrentLine() {
-    return currentLine;
-  }
+  // void handleMouseDown(Offset globalPosition) {
+  //   if (isDrawing) {
+  //     currentLine.add({'x': globalPosition.dx, 'y': globalPosition.dy});
+  //   }
+  // }
+  //
+  // void handleMouseMove(Offset globalPosition) {
+  //   currentLine.add({'x': globalPosition.dx, 'y': globalPosition.dy});
+  // }
+  //
+  // void handleMouseUp(){
+  //   isDrawing = false;
+  // }
 
 }

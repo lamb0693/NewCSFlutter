@@ -39,14 +39,14 @@ class _WebrtcPage extends State<WebrtcPage> {
 
   List<List<Map<String, double>>> linesCSR = [];
   List<List<Map<String, double>>> linesCustomer = [];
+  List<Map<String, double>> currentLine = [];
   late MyPainter painter;
+  bool isDrawing =false;
 
   @override
   void initState() {
 
-    setState(() {
-      painter = MyPainter(linesCSR, linesCustomer);
-    });
+    painter = MyPainter(linesCSR, linesCustomer, currentLine);
 
     init();
 
@@ -202,28 +202,38 @@ class _WebrtcPage extends State<WebrtcPage> {
       });
     });
 
-    socket.on('linesCustomer', (dynamic lines) {
-      print(" >>>> on linesCustomer $lines");
-      setState(() {
-        linesCustomer = (lines as List<dynamic>).map<List<Map<String, double>>>((dynamic line) {
-          return (line as List<dynamic>).map<Map<String, double>>((dynamic point) {
-            return {
-              'x': (point['x'] as num).toDouble(), // Convert 'x' to double
-              'y': (point['y'] as num).toDouble(), // Convert 'y' to double
-            };
-          }).toList();
-        }).toList();
-        print('>>>> lineCSR in Setting lineCustomer : $linesCustomer');
-      });
-    });
+    // socket.on('linesCustomer', (dynamic lines) {
+    //   print(" >>>> on linesCustomer $lines");
+    //   setState(() {
+    //     linesCustomer = (lines as List<dynamic>).map<List<Map<String, double>>>((dynamic line) {
+    //       return (line as List<dynamic>).map<Map<String, double>>((dynamic point) {
+    //         return {
+    //           'x': (point['x'] as num).toDouble(), // Convert 'x' to double
+    //           'y': (point['y'] as num).toDouble(), // Convert 'y' to double
+    //         };
+    //       }).toList();
+    //     }).toList();
+    //     print('>>>> lineCSR in Setting lineCustomer : $linesCustomer');
+    //   });
+    // });
   }
 
   void _removePrev() {
-    socket.emit('remove_prev_customer_line');
+    setState(() {
+      linesCustomer.removeLast();
+    });
+    print('lineCustomer $linesCustomer');
+    socket.emit('linesCustomer', {'lines' : linesCustomer});
+    //socket.emit('remove_prev_customer_line');
   }
 
   void _removeAll() {
-    socket.emit('remove_all_customer_line');
+    setState(() {
+      linesCustomer.clear();
+    });
+    print('lineCustomer $linesCustomer');
+    socket.emit('linesCustomer', {'lines' : linesCustomer});
+    //socket.emit('remove_all_customer_line');
   }
 
   Future joinWebrtc() async {
@@ -396,30 +406,32 @@ class _WebrtcPage extends State<WebrtcPage> {
                     onPanDown: (details) {
                       if (painter != null)  {
                         print('on Mouse Down ${details.localPosition}');
-                        painter.handleMouseDown(details.localPosition);
+                        isDrawing = true;
+                        setState(() {
+                          currentLine.add({'x': details.localPosition.dx, 'y': details.localPosition.dy});
+                        });
                       }
                     },
                     onPanUpdate: (details) {
                       if (painter != null){
                         print('on Mouse Down ${details.localPosition}');
-                        painter.handleMouseMove(details.localPosition);
+                        setState(() {
+                          currentLine.add({'x': details.localPosition.dx, 'y': details.localPosition.dy});
+                        });
                       }
-                      setState(() {});
                     },
                     onPanEnd: (details) {
                       if (painter != null) {
-                        painter.handleMouseUp();
-                        List<Map<String, dynamic>> currentLine = painter.getCurrentLine();
-                        //print(' >>>> on mouse up :  $currentLine');
-                        if(socket != null ) {
-                          socket.emit('add_customer_line', {'line' : currentLine } );
-                        };
-                        painter.clearCurrentLine();
+                        setState(() {
+                          linesCustomer.add([...currentLine]);
+                          currentLine.clear();
+                        });
+                        socket.emit('linesCustomer', {'lines' : linesCustomer});
                       }
                     },
                     child: CustomPaint(
                       size: Size(400, 200),
-                      painter: painter ?? MyPainter([], []),
+                      painter: painter ?? MyPainter([], [], []),
                     ),
                   ),
                 ),
