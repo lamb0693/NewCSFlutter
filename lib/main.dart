@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ import 'package:http/http.dart' as http;
 
 import 'board.dart';
 import 'board_list_view.dart';
+import 'package:path/path.dart' as path;
 
 void main() {
   runApp(const MyApp());
@@ -187,11 +189,23 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _pickImage() async {
+    print('>>>> pick Image called');
     XFile? image = await picker.pickImage(source: ImageSource.camera);
     print('image file path : ${image?.path}');
 
+    if(storedAccessToken == null || storedAccessToken.isEmpty) {
+      print(">>>> not login state");
+      return;
+    }
+
     if (image != null) {
-      var uploader = Uploader("사진파일", storedAccessToken, storedTel, "IMAGE", image.path);
+      File imageFile = File(image.path);
+
+      String modifiedPath = path.join(path.dirname(imageFile.path), 'saveImg.jpg');
+      await imageFile.rename(modifiedPath);
+      print('imageFile path : ${imageFile.path}');
+
+      var uploader = Uploader("사진파일", storedAccessToken, storedTel, "IMAGE", modifiedPath);
       try {
         await uploader.upload();
         print('Upload successful');
