@@ -407,8 +407,24 @@ class _WebrtcPage extends State<WebrtcPage> {
                 ),
                 child: Row(
                   children: [
-                    Expanded(child: RTCVideoView(_localRenderer)),
-                    Expanded(child: RTCVideoView(_remoteRenderer)),
+                    Expanded(
+                      child: AspectRatio(
+                        aspectRatio: 1.0, // Set your desired aspect ratio
+                        child: Container(
+                          color: Colors.blue, // Set the background color for the first RTCVideoView
+                          child: RTCVideoView(_localRenderer),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: AspectRatio(
+                        aspectRatio: 1.0, // Set your desired aspect ratio
+                        child: Container(
+                          color: Colors.green, // Set the background color for the second RTCVideoView
+                          child: RTCVideoView(_remoteRenderer),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),

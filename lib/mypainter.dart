@@ -34,7 +34,8 @@ class MyPainter extends CustomPainter {
         }
 
         var paint = Paint()
-          ..color = Colors.black
+          ..color = Colors.blue
+          ..strokeWidth = 5
           ..style = PaintingStyle.stroke;
 
         canvas.drawPath(path, paint);
@@ -50,7 +51,8 @@ class MyPainter extends CustomPainter {
         }
 
         var paint = Paint()
-          ..color = Colors.black
+          ..color = Colors.green
+          ..strokeWidth = 5
           ..style = PaintingStyle.stroke;
 
         canvas.drawPath(path, paint);
