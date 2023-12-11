@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hello/login.dart';
+import 'package:flutter_hello/paint_upload.dart';
 import 'package:flutter_hello/uploader.dart';
 import 'package:flutter_hello/webrct.dart';
 import 'package:image_picker/image_picker.dart';
@@ -171,8 +172,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  // Add this function to reload data when returning from WebrtcPage
-  void returnFromWebrtc() {
+  void returnFromOtherPage() {
     loadDataFromServer();
   }
 
@@ -184,8 +184,18 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
     );
 
-    // This code will be executed when returning from WebrtcPage
-    returnFromWebrtc();
+    returnFromOtherPage();
+  }
+
+  _moveToPainterPage() async{
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const PaintUploadPage(title: "Painter"),
+      ),
+    );
+
+    returnFromOtherPage();
   }
 
   void _pickImage() async {
@@ -240,13 +250,12 @@ class _MyHomePageState extends State<MyHomePage> {
             _pickImage();
           },
         ),
-        // PopupMenuItem(
-        //   child: const Text('그림 그려 전송'),
-        //   onTap: () {
-        //     _moveToPainterPage();
-        //   },
-        // ),
-        // Add more items as needed
+        PopupMenuItem(
+          child: const Text('그림 그려 전송'),
+          onTap: () {
+            _moveToPainterPage();
+          },
+        ),
       ],
     );
   }
