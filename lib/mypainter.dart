@@ -2,15 +2,16 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class MyPainter extends CustomPainter {
-  final List<List<Map<String, double>>> linesCSR;
-  final List<List<Map<String, double>>> linesCustomer;
+  List<List<Map<String, double>>> linesCSR;
+  List<List<Map<String, double>>> linesCustomer;
   final List<Map<String, double>> currentLine;
 
   MyPainter(this.linesCSR, this.linesCustomer, this.currentLine);
 
+  // Setter method to update the lists
+
   @override
   void paint(Canvas canvas, Size size) {
-
 
     var paint = Paint()
       ..color = Colors.black
@@ -65,7 +66,14 @@ class MyPainter extends CustomPainter {
       }
       canvas.drawPath(path, Paint()..color = Colors.red);
     }
+  }
 
+  void setLinesCSR(List<List<Map<String, double>>> linesCSR) {
+    this.linesCSR = linesCSR;
+  }
+
+  void setLinesCustomer(List<List<Map<String, double>>> linesCustomer) {
+    this.linesCustomer = linesCustomer;
   }
 
   @override

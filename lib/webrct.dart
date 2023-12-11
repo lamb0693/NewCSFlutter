@@ -229,6 +229,7 @@ class _WebrtcPage extends State<WebrtcPage> {
 
       print('tempLinesCSR : $tempLinesCSR' );
 
+      painter.setLinesCSR([...tempLinesCSR]);
       setState(() {
         linesCSR = [...tempLinesCSR];
       });
@@ -236,18 +237,18 @@ class _WebrtcPage extends State<WebrtcPage> {
   }
 
   void _removePrev() {
-    setState(() {
-      linesCustomer.removeLast();
-    });
+    linesCustomer.removeLast();
+    painter.setLinesCustomer([...linesCustomer]);
+    setState(() { });
     print('lineCustomer $linesCustomer');
     socket.emit('linesCustomer', {'lines' : linesCustomer});
     //socket.emit('remove_prev_customer_line');
   }
 
   void _removeAll() {
-    setState(() {
-      linesCustomer.clear();
-    });
+    linesCustomer.clear();
+    painter.setLinesCustomer([...linesCustomer]);
+    setState(() { });
     print('lineCustomer $linesCustomer');
     socket.emit('linesCustomer', {'lines' : linesCustomer});
     //socket.emit('remove_all_customer_line');
@@ -402,7 +403,7 @@ class _WebrtcPage extends State<WebrtcPage> {
             children: [
               ConstrainedBox(
                 constraints: const BoxConstraints(
-                  maxHeight: 200,
+                  maxHeight: 150,
                 ),
                 child: Row(
                   children: [
@@ -414,8 +415,8 @@ class _WebrtcPage extends State<WebrtcPage> {
               ConstrainedBox(
                 constraints: const BoxConstraints(
                   minWidth: 400,
-                  minHeight: 200,
-                  maxHeight: 200,
+                  minHeight: 150,
+                  maxHeight: 150,
                 ),
                 child: Container(
                   color: Colors.grey,
@@ -439,15 +440,15 @@ class _WebrtcPage extends State<WebrtcPage> {
                     },
                     onPanEnd: (details) {
                       if (painter != null) {
-                        setState(() {
-                          linesCustomer.add([...currentLine]);
-                          currentLine.clear();
-                        });
+                        linesCustomer.add([...currentLine]);
+                        currentLine.clear();
+                        painter.setLinesCustomer([...linesCustomer]);
+                        setState(() { });
                         socket.emit('linesCustomer', {'lines' : linesCustomer});
                       }
                     },
                     child: CustomPaint(
-                      size: Size(400, 200),
+                      size: Size(400, 150),
                       painter: painter ,
                     ),
                   ),

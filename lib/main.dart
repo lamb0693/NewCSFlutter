@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hello/login.dart';
+import 'package:flutter_hello/uploader.dart';
 import 'package:flutter_hello/webrct.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
@@ -48,6 +50,10 @@ class _MyHomePageState extends State<MyHomePage> {
   final List<Board> boards = [];
 
   final TextEditingController _messageController = TextEditingController();
+
+  final picker = ImagePicker();
+  List<XFile?> multiImage = []; // 갤러리에서 여러 장의 사진을 선택해서 저장할 변수
+  List<XFile?> images = []; // 가져온 사진들을 보여주기 위한 변수
 
   Future<void> loadDataFromServer() async {
     // Set loading state to true
@@ -133,11 +139,6 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  // void _moveToWebrtc() {
-  //   Navigator.push(context,
-  //       MaterialPageRoute(builder: (context) => WebrtcPage(title: "Webrtc")));
-  // }
-
   void sendMessage() async {
 
     Map<String, dynamic> requestBody = {
@@ -185,6 +186,58 @@ class _MyHomePageState extends State<MyHomePage> {
     returnFromWebrtc();
   }
 
+  void _pickImage() async {
+    XFile? image = await picker.pickImage(source: ImageSource.camera);
+    print('image file path : ${image?.path}');
+
+    if (image != null) {
+      var uploader = Uploader("사진파일", storedAccessToken, storedTel, "IMAGE", image.path);
+      try {
+        await uploader.upload();
+        print('Upload successful');
+        // Proceed to load data from the server after a successful upload
+        loadDataFromServer();
+      } catch (e) {
+        print('Upload failed: $e');
+        // Handle the error, perhaps show a user-friendly message
+      }
+    }
+  }
+
+  void _showFloatingMenu(BuildContext context) async {
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final RenderBox overlay = Overlay.of(context)!.context.findRenderObject() as RenderBox;
+
+    final RelativeRect position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        button.localToGlobal(Offset(0, button.size.height), ancestor: overlay),
+        button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
+
+    await showMenu(
+      context: context,
+      position: position,
+      items: [
+        PopupMenuItem(
+          child: const Text('사진 전송'),
+          onTap: () {
+            _pickImage();
+          },
+        ),
+        // PopupMenuItem(
+        //   child: const Text('그림 그려 전송'),
+        //   onTap: () {
+        //     _moveToPainterPage();
+        //   },
+        // ),
+        // Add more items as needed
+      ],
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -206,6 +259,17 @@ class _MyHomePageState extends State<MyHomePage> {
               padding: const EdgeInsets.all(8),
               child: Row(
                 children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      _showFloatingMenu(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(0.0), // Set the border radius to 0 for a rectangular shape
+                      ),
+                    ),
+                    child: const Icon(Icons.more_vert_outlined),
+                  ),
                   Expanded(
                     child: TextField(
                       controller: _messageController,
