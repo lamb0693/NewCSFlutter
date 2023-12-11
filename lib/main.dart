@@ -15,6 +15,8 @@ import 'board.dart';
 import 'board_list_view.dart';
 import 'package:path/path.dart' as path;
 
+import 'custom_image_dlg.dart';
+
 void main() {
   runApp(const MyApp());
 }
@@ -260,6 +262,97 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  void _showImageDialog(BuildContext context, int boardId) {
+    if (storedAccessToken == null || storedAccessToken.isEmpty) {
+      print("Show Image Dialog : $storedAccessToken");
+      return;
+    }
+
+    print("executing download");
+    String apiUrl = 'http://10.100.203.62:8080/api/board/download';
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return FutureBuilder(
+          future: _getImageData(apiUrl, boardId),
+          builder: (BuildContext context, AsyncSnapshot<Uint8List> snapshot) {
+            if (snapshot.connectionState == ConnectionState.done) {
+              if (snapshot.hasError) {
+                // Handle error if the image download fails
+                print('Failed to download image: ${snapshot.error}');
+                return const AlertDialog(
+                  title: Text('Error'),
+                  content: Text('Failed to download image.'),
+                );
+              } else {
+                // Image has been loaded successfully, show the custom image dialog
+                return CustomImageDialog(imageData: snapshot.data!);
+              }
+            } else {
+              // Show a loading indicator while waiting for the image to load
+              return const Center(child: CircularProgressIndicator());
+            }
+          },
+        );
+      },
+    );
+  }
+
+  Future<Uint8List> _getImageData(String apiUrl, int boardId) async {
+    try {
+      final http.Response response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {'Authorization': 'Bearer $storedAccessToken'},
+        body: {'id': boardId.toString()},
+      );
+
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      } else {
+        throw Exception('Failed to download image. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error during image download: $e');
+    }
+  }
+
+
+  // void _showImageDialog(BuildContext context, int boardId) async {
+  //   if(storedAccessToken == null || storedAccessToken.isEmpty) {
+  //     print("Show Image Dialog : $storedAccessToken");
+  //     return;
+  //   }
+  //
+  //   print("executing download");
+  //   String apiUrl = 'http://10.100.203.62:8080/api/board/download';
+  //
+  //   try {
+  //     final http.Response response = await http.post(
+  //       Uri.parse(apiUrl),
+  //       headers: {'Authorization': 'Bearer $storedAccessToken'},
+  //       body: {'id': boardId.toString()},
+  //     );
+  //
+  //     if (response.statusCode == 200) {
+  //       Uint8List imageData = response.bodyBytes;
+  //
+  //       showDialog(
+  //         context: context,
+  //         builder: (context) {
+  //           return CustomImageDialog(imageData: imageData);
+  //         },
+  //       );
+  //     } else {
+  //       // Handle error if the image download fails
+  //       print('Failed to download image. Status code: ${response.statusCode}');
+  //     }
+  //   } catch (e) {
+  //     // Handle error if the HTTP request fails
+  //     print('Error during image download: $e');
+  //   }
+  // }
+
 
   @override
   Widget build(BuildContext context) {
@@ -276,8 +369,12 @@ class _MyHomePageState extends State<MyHomePage> {
                 child: isLoading
                     ? const CircularProgressIndicator()
                     : BoardListView(boards: boards, onBoardTap: (int index) {
-                  // Handle the tapped board index here
-                  print('Tapped board index: ${boards[index].boardId}');
+                    print('Tapped board index: ${boards[index].boardId}');
+                    if(boards[index].content == 'IMAGE') {
+                      _showImageDialog(context, boards[index].boardId);
+                    } else {
+
+                    }
                 },),
               ),
             ),
