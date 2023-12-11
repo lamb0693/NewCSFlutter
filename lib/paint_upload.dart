@@ -273,7 +273,10 @@ class _PaintUploadPage extends State<PaintUploadPage>{
                 child: Center(
                   child: isLoading
                       ? const CircularProgressIndicator()
-                      : BoardListView(boards: boards),
+                      : BoardListView(boards: boards, onBoardTap: (int index) {
+                    // Handle the tapped board index here
+                    print('Tapped board index: ${boards[index].boardId}');
+                  },),
                 ),
               ),
               Padding(
