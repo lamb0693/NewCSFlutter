@@ -29,6 +29,32 @@ class _BoardListViewState extends State<BoardListView> {
     widget.onBoardTap(index);
   }
 
+  Widget _buildIconForContent(String content) {
+    IconData iconData;
+    Color iconColor = Colors.black; // Set your desired default icon color
+
+    switch (content) {
+      case 'TEXT':
+        iconData = Icons.abc; // Replace 'icon1' with the actual icon you want to use
+        break;
+      case 'IMAGE':
+        iconData = Icons.camera_alt; // Replace 'icon2' with the actual icon you want to use
+        break;
+      case 'PAINT':
+        iconData = Icons.draw; // Replace 'icon2' with the actual icon you want to use
+        break;
+    // Add more cases as needed
+      default:
+        iconData = Icons.error; // Replace 'defaultIcon' with the default icon you want to use
+    }
+
+    return Icon(
+      iconData,
+      color: iconColor,
+      // Add any other properties you want to set for the Icon widget
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
@@ -73,12 +99,7 @@ class _BoardListViewState extends State<BoardListView> {
                             flex: 2,
                             child: Container(
                               margin: const EdgeInsets.only(right: 8),
-                              child: Text(
-                                boards[index].content,
-                                style: const TextStyle(
-                                  // Set text styles as needed
-                                ),
-                              ),
+                              child : _buildIconForContent(boards[index].content),
                             ),
                           ),
                           Expanded(

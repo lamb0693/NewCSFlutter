@@ -17,7 +17,7 @@ class CustomImageDialog extends StatelessWidget {
             imageData,
             fit: BoxFit.cover,
             width: double.infinity,
-            height: 200,
+            height: 500,
           ),
           ElevatedButton(
             onPressed: () {

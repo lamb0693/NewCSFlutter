@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import 'constants.dart';
+
 class Uploader {
   final String filePath;
   final String storedAccessToken;
@@ -18,7 +20,7 @@ class Uploader {
       try {
         var request = http.MultipartRequest(
           'POST',
-          Uri.parse('http://10.100.203.62:8080/api/board/create'),
+          Uri.parse('${AppConstants.apiBaseUrl}/api/board/create'),
         );
 
         // Set headers

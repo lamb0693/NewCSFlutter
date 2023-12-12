@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 
 import 'board.dart';
 import 'board_list_view.dart';
+import 'constants.dart';
 import 'mypainter.dart';
 
 class WebrtcPage extends StatefulWidget {
@@ -24,7 +25,6 @@ class WebrtcPage extends StatefulWidget {
 }
 
 class _WebrtcPage extends State<WebrtcPage> {
-  final SGINAL_SERVER = 'http://10.100.203.62:3002';
   late final IO.Socket socket;
   final _localRenderer = RTCVideoRenderer();
   final _remoteRenderer = RTCVideoRenderer();
@@ -42,6 +42,7 @@ class _WebrtcPage extends State<WebrtcPage> {
   List<Map<String, double>> currentLine = [];
   late MyPainter painter;
   bool isDrawing =false;
+  bool isSocketInitialized = false;
 
 
   @override
@@ -79,7 +80,7 @@ class _WebrtcPage extends State<WebrtcPage> {
     }
 
     try{
-      var response = await http.post(Uri.parse('http://10.100.203.62:8080/api/board/list'),
+      var response = await http.post(Uri.parse('${AppConstants.apiBaseUrl}/api/board/list'),
         headers: <String, String>{
           'Authorization': 'Bearer:$storedAccessToken',
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -148,7 +149,7 @@ class _WebrtcPage extends State<WebrtcPage> {
 
     try {
       var response = await http.post(
-        Uri.parse('http://10.100.203.62:8080/api/board/create'),
+        Uri.parse('${AppConstants.apiBaseUrl}/api/board/create'),
         headers: <String, String>{
           'Authorization': 'Bearer:$storedAccessToken',
         },
@@ -169,19 +170,16 @@ class _WebrtcPage extends State<WebrtcPage> {
   }
 
   Future connectSocket() async{
-    socket = IO.io(SGINAL_SERVER, IO.OptionBuilder().setTransports(['websocket']).build() );
+    socket = IO.io(AppConstants.signalSERVER, IO.OptionBuilder().setTransports(['websocket']).build() );
     socket.onConnect((data) => print("connected") );
 
     socket.on('offer', (offer) async {
-      print(' >>>> offer event arrived');
-      print(' offer.sdp ${offer['sdp']}');
-      print(' offer.type ${offer['type']}');
-      // try{
-      //   offer = jsonDecode(offer);
-      // } catch(e) {
-      //   print('>>>> offer : jsonDecode error $offer');
-      // }
 
+      if (kDebugMode) {
+        print(' >>>> offer event arrived');
+        print(' offer.sdp ${offer['sdp']}');
+        print(' offer.type ${offer['type']}');
+      }
       await _gotOffer(RTCSessionDescription(offer['sdp'], offer['type']));
       await _sendAnswer();
     });
@@ -193,7 +191,9 @@ class _WebrtcPage extends State<WebrtcPage> {
     // });
 
     socket.on('ice', (ice) {
-      print('>>>> ice event arrived, $ice');
+      if (kDebugMode) {
+        print('>>>> ice event arrived, $ice');
+      }
       _gotIce(RTCIceCandidate(
         ice['candidate'],
         ice['sdpMid'],
@@ -212,7 +212,9 @@ class _WebrtcPage extends State<WebrtcPage> {
     // });
 
     socket.on('linesCSR', (lines) {
-      print(" >>>> on linesCSR $lines");
+      if (kDebugMode) {
+        print(" >>>> on linesCSR $lines");
+      }
 
       List<dynamic> decodedList = json.decode(lines);
 
@@ -227,7 +229,9 @@ class _WebrtcPage extends State<WebrtcPage> {
         }).toList();
       }).toList();
 
-      print('tempLinesCSR : $tempLinesCSR' );
+      if (kDebugMode) {
+        print('tempLinesCSR : $tempLinesCSR' );
+      }
 
       painter.setLinesCSR([...tempLinesCSR]);
       setState(() {
@@ -240,7 +244,9 @@ class _WebrtcPage extends State<WebrtcPage> {
     linesCustomer.removeLast();
     painter.setLinesCustomer([...linesCustomer]);
     setState(() { });
-    print('lineCustomer $linesCustomer');
+    if (kDebugMode) {
+      print('lineCustomer $linesCustomer');
+    }
     socket.emit('linesCustomer', {'lines' : linesCustomer});
     //socket.emit('remove_prev_customer_line');
   }
@@ -249,7 +255,9 @@ class _WebrtcPage extends State<WebrtcPage> {
     linesCustomer.clear();
     painter.setLinesCustomer([...linesCustomer]);
     setState(() { });
-    print('lineCustomer $linesCustomer');
+    if (kDebugMode) {
+      print('lineCustomer $linesCustomer');
+    }
     socket.emit('linesCustomer', {'lines' : linesCustomer});
     //socket.emit('remove_all_customer_line');
   }
@@ -257,7 +265,7 @@ class _WebrtcPage extends State<WebrtcPage> {
   Future joinWebrtc() async {
     final config = {
       'iceservers' : [
-        {"url" : "stun:stun.l.google.com:19302"},
+        {"url" : AppConstants.stunServer},
       ]
     };
 
@@ -280,30 +288,24 @@ class _WebrtcPage extends State<WebrtcPage> {
     };
 
     _localStream = await Helper.openCamera(mediaConstraints);
-    print('$_localStream');
-
-    //await Future.delayed(const Duration(seconds: 1));
-
-    // Refine video constraints based on desired values
-    // final refinedConstraints = {
-    //   'audio': true,
-    //   'video': {
-    //     'facingMode': 'user',
-    //     'width': {'min': 256, 'ideal': 256},
-    //     'height': {'min': 190, 'ideal': 144},
-    //   },
-    // };
+    if (kDebugMode) {
+      print('$_localStream');
+    }
 
     _localStream?.getTracks().forEach((track) {
       pc?.addTrack(track, _localStream!);
     });
-    print('>>>>  localStream $_localStream');
+    if (kDebugMode) {
+      print('>>>>  localStream $_localStream');
+    }
 
     setState( () {
       _localRenderer.srcObject = _localStream;
     });
 
-    print('>>>>  _localRenderer  $_localRenderer');
+    if (kDebugMode) {
+      print('>>>>  _localRenderer  $_localRenderer');
+    }
 
     pc!.onIceCandidate = (ice){
       // _sendIce(ice);
@@ -316,12 +318,16 @@ class _WebrtcPage extends State<WebrtcPage> {
 
       socket.emit('ice', iceObject);
 
-      print('sending Ice, $iceObject');
+      if (kDebugMode) {
+        print('sending Ice, $iceObject');
+      }
     };
 
 
     pc!.onTrack = (event) {
-      print('pc on Add remote stream, $event');
+      if (kDebugMode) {
+        print('pc on Add remote stream, $event');
+      }
       setState(() {
         _remoteRenderer.srcObject = event.streams[0];
       });
@@ -337,14 +343,18 @@ class _WebrtcPage extends State<WebrtcPage> {
   // }
 
   Future _gotOffer(RTCSessionDescription rtcSessionDescription) async {
-    print('>>>>  gotOffer executed setting remoteDescripton, $rtcSessionDescription');
+    if (kDebugMode) {
+      print('>>>>  gotOffer executed setting remoteDescripton, $rtcSessionDescription');
+    }
     pc!.setRemoteDescription(rtcSessionDescription);
   }
 
   Future _sendAnswer() async {
     var answer = await pc!.createAnswer();
     pc!.setLocalDescription(answer);
-    print('>>>>  sendAnwser executed $answer');
+    if (kDebugMode) {
+      print('>>>>  sendAnwser executed $answer');
+    }
 
     var answerObject = {
       'sdp': answer.sdp,
@@ -352,7 +362,6 @@ class _WebrtcPage extends State<WebrtcPage> {
     };
 
     socket.emit('answer', answerObject);
-    //socket.emit('answer', answer);
   }
 
   // Future _gotAnswer(RTCSessionDescription rtcSessionDescription) async {
@@ -361,17 +370,21 @@ class _WebrtcPage extends State<WebrtcPage> {
   // }
 
   Future _sendIce(RTCIceCandidate ice) async {
-    print('>>>>  sendIce executed $ice');
+    if (kDebugMode) {
+      print('>>>>  sendIce executed $ice');
+    }
     socket.emit('ice', jsonEncode(ice.toMap()));
   }
 
   Future _gotIce(RTCIceCandidate rtcIceCandidate) async {
-    print('>>>>  gotIce executed $rtcIceCandidate');
+    if (kDebugMode) {
+      print('>>>>  gotIce executed $rtcIceCandidate');
+    }
     pc!.addCandidate(rtcIceCandidate);
   }
 
   void _toPrevious() async {
-    await disconnectSocket();
+    //await disconnectSocket();
     if (mounted) Navigator.pop(context);
   }
 
@@ -409,18 +422,18 @@ class _WebrtcPage extends State<WebrtcPage> {
                   children: [
                     Expanded(
                       child: AspectRatio(
-                        aspectRatio: 1.0, // Set your desired aspect ratio
+                        aspectRatio: 1.0,
                         child: Container(
-                          color: Colors.blue, // Set the background color for the first RTCVideoView
+                          color: Colors.blue,
                           child: RTCVideoView(_localRenderer),
                         ),
                       ),
                     ),
                     Expanded(
                       child: AspectRatio(
-                        aspectRatio: 1.0, // Set your desired aspect ratio
+                        aspectRatio: 1.0,
                         child: Container(
-                          color: Colors.green, // Set the background color for the second RTCVideoView
+                          color: Colors.green,
                           child: RTCVideoView(_remoteRenderer),
                         ),
                       ),
@@ -464,7 +477,7 @@ class _WebrtcPage extends State<WebrtcPage> {
                       }
                     },
                     child: CustomPaint(
-                      size: Size(400, 150),
+                      size: const Size(400, 150),
                       painter: painter ,
                     ),
                   ),
@@ -476,7 +489,9 @@ class _WebrtcPage extends State<WebrtcPage> {
                       ? const CircularProgressIndicator()
                       :BoardListView(boards: boards, onBoardTap: (int index) {
                     // Handle the tapped board index here
-                    print('Tapped board index: ${boards[index].boardId}');
+                    if (kDebugMode) {
+                      print('Tapped board index: ${boards[index].boardId}');
+                    }
                   },),
                 ),
               ),
@@ -508,15 +523,11 @@ class _WebrtcPage extends State<WebrtcPage> {
             children: [
               ElevatedButton(
                 onPressed: _toPrevious,
-                child: const Text('돌아가기'),
+                child: const Icon(Icons.arrow_back),
               ),
-              // ElevatedButton(
-              //   onPressed: _enter,
-              //   child: const Text('입장'),
-              // ),
               ElevatedButton(
                 onPressed: _join,
-                child: const Text('참가'),
+                child: const Text('상담원'),
               ),
               ElevatedButton(
                 onPressed: _removePrev,

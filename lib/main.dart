@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_hello/audio_upload.dart';
+import 'package:flutter_hello/constants.dart';
 import 'package:flutter_hello/login.dart';
 import 'package:flutter_hello/paint_upload.dart';
 import 'package:flutter_hello/uploader.dart';
@@ -16,6 +19,7 @@ import 'board_list_view.dart';
 import 'package:path/path.dart' as path;
 
 import 'custom_image_dlg.dart';
+import 'custom_paint_dlg.dart';
 
 void main() {
   runApp(const MyApp());
@@ -48,20 +52,27 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
 
-  late String storedAccessToken;
-  late String storedTel;
+  String? storedAccessToken;
+  String? storedTel;
   bool isLoading = false;
 
+  // 서버로 부터 다운 받은 게시글 리스트
   final List<Board> boards = [];
 
+  //  sendMessage 의 text
   final TextEditingController _messageController = TextEditingController();
 
+  // 사진 찍어 전송용
   final picker = ImagePicker();
-  List<XFile?> multiImage = []; // 갤러리에서 여러 장의 사진을 선택해서 저장할 변수
-  List<XFile?> images = []; // 가져온 사진들을 보여주기 위한 변수
+  // List<XFile?> multiImage = [];
+  // List<XFile?> images = [];
 
+  // 서버로 부터 boardList를 받는다
   Future<void> loadDataFromServer() async {
-    // Set loading state to true
+    if(storedAccessToken == null || storedAccessToken == ''){
+      return;
+    }
+
     setState(() {
       isLoading = true;
     });
@@ -76,7 +87,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     try{
-      var response = await http.post(Uri.parse('http://10.100.203.62:8080/api/board/list'),
+      var response = await http.post(Uri.parse('${AppConstants.apiBaseUrl}/api/board/list'),
         headers: <String, String>{
           'Authorization': 'Bearer:$storedAccessToken',
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -85,7 +96,7 @@ class _MyHomePageState extends State<MyHomePage> {
           'noOfDisplay': requestBody['noOfDisplay'].toString(),
           'tel': requestBody['tel'],
         },
-      );
+      ).timeout(const Duration(seconds: 5));
 
       if(response.statusCode == 200){
         List<dynamic> jsonList = jsonDecode(utf8.decode(response.bodyBytes));
@@ -103,10 +114,11 @@ class _MyHomePageState extends State<MyHomePage> {
           print('Response body: ${response.body}, ${response.statusCode}');
         }
       }
+    } on TimeoutException catch (e) {
+      print('Request timed out: $e');
     } catch (e) {
       if (kDebugMode) {
         print('error loading data $e')  ;
-
       }
     }
 
@@ -135,7 +147,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     if (result == true) {
       await loadUserInfoFromSharedPreferences();
-      if (storedAccessToken.isNotEmpty) {
+      if (storedAccessToken != null) {
         if (kDebugMode) {
           print("Reload data after login: $storedAccessToken");
         }
@@ -155,7 +167,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     try {
       var response = await http.post(
-        Uri.parse('http://10.100.203.62:8080/api/board/create'),
+        Uri.parse('${AppConstants.apiBaseUrl}/api/board/create'),
         headers: <String, String>{
           'Authorization': 'Bearer:$storedAccessToken',
         },
@@ -170,7 +182,9 @@ class _MyHomePageState extends State<MyHomePage> {
       loadDataFromServer();
     }
     catch(e){
-      print(e);
+      if (kDebugMode) {
+        print(e);
+      }
     }
   }
 
@@ -179,6 +193,27 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _moveToWebrtc() async {
+    if(storedAccessToken == null || storedAccessToken == ''){
+      await showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('로그인 필요'),
+            content: const Text('로그인 후 이용하세요'),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('확인'),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -189,7 +224,7 @@ class _MyHomePageState extends State<MyHomePage> {
     returnFromOtherPage();
   }
 
-  _moveToPainterPage() async{
+  Future _moveToPainterPage() async{
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -200,13 +235,30 @@ class _MyHomePageState extends State<MyHomePage> {
     returnFromOtherPage();
   }
 
-  void _pickImage() async {
-    print('>>>> pick Image called');
-    XFile? image = await picker.pickImage(source: ImageSource.camera);
-    print('image file path : ${image?.path}');
+  Future _moveToAudioRecorderPage() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AudioUploadPage(title: "Audio Uploader"),
+      ),
+    );
 
-    if(storedAccessToken == null || storedAccessToken.isEmpty) {
-      print(">>>> not login state");
+    returnFromOtherPage();
+  }
+
+  Future _pickImage() async {
+    if (kDebugMode) {
+      print('>>>> pick Image called');
+    }
+    XFile? image = await picker.pickImage(source: ImageSource.camera);
+    if (kDebugMode) {
+      print('image file path : ${image?.path}');
+    }
+
+    if(storedAccessToken == null || storedAccessToken == "" ) {
+      if (kDebugMode) {
+        print(">>>> not login state");
+      }
       return;
     }
 
@@ -215,16 +267,22 @@ class _MyHomePageState extends State<MyHomePage> {
 
       String modifiedPath = path.join(path.dirname(imageFile.path), 'saveImg.jpg');
       await imageFile.rename(modifiedPath);
-      print('imageFile path : ${imageFile.path}');
+      if (kDebugMode) {
+        print('imageFile path : ${imageFile.path}');
+      }
 
-      var uploader = Uploader("사진파일", storedAccessToken, storedTel, "IMAGE", modifiedPath);
+      var uploader = Uploader("사진파일", storedAccessToken!, storedTel!, "IMAGE", modifiedPath);
       try {
         await uploader.upload();
-        print('Upload successful');
+        if (kDebugMode) {
+          print('Upload successful');
+        }
         // Proceed to load data from the server after a successful upload
         loadDataFromServer();
       } catch (e) {
-        print('Upload failed: $e');
+        if (kDebugMode) {
+          print('Upload failed: $e');
+        }
         // Handle the error, perhaps show a user-friendly message
       }
     }
@@ -242,20 +300,50 @@ class _MyHomePageState extends State<MyHomePage> {
       Offset.zero & overlay.size,
     );
 
+    if(storedAccessToken == null || storedAccessToken == ''){
+      await showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('로그인 필요'),
+            content: const Text('로그인 후 이용하세요'),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('확인'),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
     await showMenu(
       context: context,
       position: position,
       items: [
         PopupMenuItem(
           child: const Text('사진 전송'),
-          onTap: () {
-            _pickImage();
+          onTap: () async {
+            await _pickImage();
+            returnFromOtherPage();
+          },
+        ),
+        PopupMenuItem(
+          child: const Text('음성 전송'),
+          onTap: () async {
+            await _moveToAudioRecorderPage();
+            returnFromOtherPage();
           },
         ),
         PopupMenuItem(
           child: const Text('그림 그려 전송'),
-          onTap: () {
-            _moveToPainterPage();
+          onTap: () async {
+            await _moveToPainterPage();
+            returnFromOtherPage();
           },
         ),
       ],
@@ -263,13 +351,17 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _showImageDialog(BuildContext context, int boardId) {
-    if (storedAccessToken == null || storedAccessToken.isEmpty) {
-      print("Show Image Dialog : $storedAccessToken");
+    if (storedAccessToken == null || storedAccessToken == '') {
+      if (kDebugMode) {
+        print("Show Image Dialog : $storedAccessToken");
+      }
       return;
     }
 
-    print("executing download");
-    String apiUrl = 'http://10.100.203.62:8080/api/board/download';
+    if (kDebugMode) {
+      print("executing download");
+    }
+    String apiUrl = '${AppConstants.apiBaseUrl}/api/board/download';
 
     showDialog(
       context: context,
@@ -280,17 +372,17 @@ class _MyHomePageState extends State<MyHomePage> {
             if (snapshot.connectionState == ConnectionState.done) {
               if (snapshot.hasError) {
                 // Handle error if the image download fails
-                print('Failed to download image: ${snapshot.error}');
+                if (kDebugMode) {
+                  print('Failed to download image: ${snapshot.error}');
+                }
                 return const AlertDialog(
                   title: Text('Error'),
                   content: Text('Failed to download image.'),
                 );
               } else {
-                // Image has been loaded successfully, show the custom image dialog
                 return CustomImageDialog(imageData: snapshot.data!);
               }
             } else {
-              // Show a loading indicator while waiting for the image to load
               return const Center(child: CircularProgressIndicator());
             }
           },
@@ -317,43 +409,107 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  void _showPaintDialog(BuildContext context, int boardId) {
+    if (storedAccessToken == null || storedAccessToken == '') {
+      if (kDebugMode) {
+        print("Show Image Dialog : $storedAccessToken");
+      }
+      return;
+    }
 
-  // void _showImageDialog(BuildContext context, int boardId) async {
-  //   if(storedAccessToken == null || storedAccessToken.isEmpty) {
-  //     print("Show Image Dialog : $storedAccessToken");
-  //     return;
-  //   }
-  //
-  //   print("executing download");
-  //   String apiUrl = 'http://10.100.203.62:8080/api/board/download';
-  //
-  //   try {
-  //     final http.Response response = await http.post(
-  //       Uri.parse(apiUrl),
-  //       headers: {'Authorization': 'Bearer $storedAccessToken'},
-  //       body: {'id': boardId.toString()},
-  //     );
-  //
-  //     if (response.statusCode == 200) {
-  //       Uint8List imageData = response.bodyBytes;
-  //
-  //       showDialog(
-  //         context: context,
-  //         builder: (context) {
-  //           return CustomImageDialog(imageData: imageData);
-  //         },
-  //       );
-  //     } else {
-  //       // Handle error if the image download fails
-  //       print('Failed to download image. Status code: ${response.statusCode}');
-  //     }
-  //   } catch (e) {
-  //     // Handle error if the HTTP request fails
-  //     print('Error during image download: $e');
-  //   }
-  // }
+    if (kDebugMode) {
+      print("executing download paint");
+    }
+    String apiUrl = '${AppConstants.apiBaseUrl}/api/board/download';
 
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return FutureBuilder<List<List<Map<String, double>>>>(
+          future: _getPaintData(apiUrl, boardId),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const CircularProgressIndicator();
+            } else if (snapshot.hasError) {
+              return AlertDialog(
+                title: const Text('Error'),
+                content: const Text('Failed to fetch paint data'),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    child: const Text('OK'),
+                  ),
+                ],
+              );
+            } else if (!snapshot.hasData || snapshot.data!.isEmpty){
+              return AlertDialog(
+                title: const Text('No Paint Data'),
+                content: const Text('There is no paint data available.'),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    child: Text('OK'),
+                  ),
+                ],
+              );
+            } else {
+              return CustomPaintDialog(lines: snapshot.data!);
+            }
+          }
+        );
+      },
+    );
+  }
 
+  Future< List<List<Map<String, double>>> > _getPaintData(String apiUrl, int boardId) async {
+    List<List<Map<String, double>>> lines = [];
+
+    try {
+      final http.Response response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {'Authorization': 'Bearer $storedAccessToken'},
+        body: {'id': boardId.toString()},
+      );
+
+      if (response.statusCode == 200) {
+        String jsonString = response.body;
+        List<dynamic> decodedList = json.decode( jsonString );
+
+        lines = decodedList.map<List<Map<String, double>>>((line) {
+          return (line as List<dynamic>).map<Map<String, double>>((point) {
+            return {
+              'x': (point['x'] as num).toDouble(),
+              'y': (point['y'] as num).toDouble(),
+            };
+          }).toList();
+        }).toList();
+
+      } else {
+        throw Exception('Failed to download paint file. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error during image download: $e');
+    }
+
+    return lines;
+  }
+
+  void logout() async{
+    storedAccessToken = null;
+    storedTel = null;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove("accessToken");
+    await prefs.remove("tel");
+    await prefs.remove("role");
+    setState(() {
+      boards.clear();
+    });
+  }
+  
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -368,10 +524,19 @@ class _MyHomePageState extends State<MyHomePage> {
               child: Center(
                 child: isLoading
                     ? const CircularProgressIndicator()
+                    : storedAccessToken == null
+                    ? Image.asset(
+                        'assets/backImage.jpg',
+                        fit: BoxFit.cover, // Use BoxFit.cover to fill the area
+                    )
                     : BoardListView(boards: boards, onBoardTap: (int index) {
-                    print('Tapped board index: ${boards[index].boardId}');
+                    if (kDebugMode) {
+                      print('Tapped board index: ${boards[index].boardId}');
+                    }
                     if(boards[index].content == 'IMAGE') {
                       _showImageDialog(context, boards[index].boardId);
+                    } else if(boards[index].content == 'PAINT'){
+                      _showPaintDialog(context, boards[index].boardId);
                     } else {
 
                     }
@@ -413,12 +578,23 @@ class _MyHomePageState extends State<MyHomePage> {
         bottomNavigationBar: BottomAppBar(
           child : Row (
             children: [
-              ElevatedButton(
+              Visibility(
+                visible: storedAccessToken == null,
+                child: ElevatedButton(
                   onPressed: moveToLogin,
-                  child: const Icon(Icons.login)),
+                  child: const Text('로그인'),
+                ),
+              ),
+              Visibility(
+                visible: storedAccessToken != null && storedAccessToken != '',
+                child: ElevatedButton(
+                  onPressed: logout,
+                  child: const Text('로그아웃'),
+                ),
+              ),
               ElevatedButton(
                   onPressed: _moveToWebrtc,
-                  child: const Text('webrtc')
+                  child: const Text('상담원연결')
               ),
             ],
           )

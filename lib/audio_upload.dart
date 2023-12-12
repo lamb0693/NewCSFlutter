@@ -1,106 +1,179 @@
-
+import 'dart:async';
 import 'dart:convert';
-import 'package:path_provider/path_provider.dart';
-
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hello/uploader.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 
 import 'board.dart';
 import 'board_list_view.dart';
-import 'package:http/http.dart' as http;
-
 import 'constants.dart';
 
-class Painter extends CustomPainter{
-  List<List<Map<String, double>>> lines ;
-  List<Map<String, double>> line;
+import 'package:another_audio_recorder/another_audio_recorder.dart';
+import 'package:path_provider/path_provider.dart';
 
-  Painter(this.line, this.lines);
+
+class AudioRecorderWidget extends StatefulWidget {
+  const AudioRecorderWidget({super.key});
 
   @override
-  void paint(Canvas canvas, Size size) {
-    var paint = Paint()
-      ..color = Colors.black
-      ..style = PaintingStyle.stroke;
+  State<AudioRecorderWidget> createState() => _AudioRecorderWidgetState();
+}
 
-    print('>>>> onPaint : $line, $lines');
+class _AudioRecorderWidgetState extends State<AudioRecorderWidget> {
+  AnotherAudioRecorder? recorder;
+  String fileName = '';
+  String filePath = '';
+  Directory? externalDir;
+  bool isRecording = false;
 
-    // Draw lines based on the linesCSR data
-    for (var line in lines) {
-      if (line.length > 1) {
-        final path = Path();
-        path.moveTo(line[0]['x']!, line[0]['y']!);
-        for (var i = 1; i < line.length; i++) {
-          path.lineTo(line[i]['x']!, line[i]['y']!);
-        }
+  @override
+  void initState() {
+    init();
 
-        var paint = Paint()
-          ..color = Colors.black
-          ..style = PaintingStyle.stroke;
+    super.initState();
+  }
 
-        canvas.drawPath(path, paint);
-      }
-    }
-
-    // Draw the current line being drawn
-    if (line.isNotEmpty) {
-      final path = Path();
-      path.moveTo(line[0]['x']!, line[0]['y']!);
-      for (var i = 1; i < line.length; i++) {
-        path.lineTo(line[i]['x']!, line[i]['y']!);
-      }
-      canvas.drawPath(path, Paint()..color = Colors.red);
+  init() async {
+    bool hasPermission = await AnotherAudioRecorder.hasPermissions;
+    if(hasPermission){
+      externalDir = await getExternalStorageDirectory();
     }
   }
 
-  void setLines(List<List<Map<String, double>>> lines){
-    this.lines = [...lines];
+  String getFilePath() {
+    return filePath;
+  }
+
+  Future<bool> initPlayer() async {
+    bool hasPermission = await AnotherAudioRecorder.hasPermissions;
+    if(hasPermission) {
+      externalDir = await getExternalStorageDirectory();
+
+      String timestamp = DateTime
+          .now()
+          .millisecondsSinceEpoch
+          .toString();
+      setState(() {
+        fileName = 'audio$timestamp.wav';
+      });
+      String filePath = '${externalDir?.path}/$fileName';
+      recorder = AnotherAudioRecorder(filePath, audioFormat: AudioFormat.WAV);
+      if (recorder == null) {
+        print('>>>>error!! cannot acquire recorder');
+        return false;
+      } else {
+        await recorder?.initialized;
+        print('>>>>recorder $recorder');
+        return true;
+      }
+    } else {
+      return false;
+    }
+  }
+
+  Future<void> _startRecording() async {
+    setState(() {
+      isRecording = true;
+    });
+    bool initResult = await initPlayer();
+    if(initResult){
+      await recorder?.start();
+      // 필요하면 log 찍자
+      //Recording? recording = await recorder?.current(channel: 0);
+      // Timer.periodic(Durations.extralong4, (Timer t) async {
+      //   var current = await recording?.status;
+      //     print('>>>> current $current');
+      // });
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    setState(() {
+      isRecording = false;
+    });
+    var result = await recorder?.stop();
+    print( 'path saved audio ${result?.path}');
+  }
+
+  Future<void> _playRecording() async {
+
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true;
+  void dispose() {
+    // Be careful : you must `close` the audio session when you have finished with it.
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Visibility(
+          visible: !isRecording,
+          child: ElevatedButton(
+            onPressed: _startRecording,
+            child: const Icon(Icons.fiber_manual_record),
+          ),
+        ),
+        Visibility(
+          visible: isRecording,
+          child: ElevatedButton(
+            onPressed: _stopRecording,
+            child: const Icon(Icons.stop),
+          ),
+        ),
+        Visibility(
+          visible: !isRecording && fileName!='',
+          child: ElevatedButton(
+            onPressed: _playRecording,
+            child: const Icon(Icons.play_arrow),
+          ),
+        ),
+        Text(
+          '녹음파일 : $fileName',
+        ),
+      ],
+    );
   }
 }
 
-class PaintUploadPage extends StatefulWidget {
+class AudioUploadPage extends StatefulWidget {
   final String title;
 
-  const PaintUploadPage({super.key, required this.title});
+  const AudioUploadPage({super.key, required this.title});
 
   @override
-  State<PaintUploadPage> createState() => _PaintUploadPage();
+  State<AudioUploadPage> createState() => _AudioUploadPage();
 }
 
-class _PaintUploadPage extends State<PaintUploadPage>{
-  List<List<Map<String, double>>> lines = [];
-  List<Map<String, double>> line = [];
-  bool isDrawing = false;
-
+class _AudioUploadPage extends State<AudioUploadPage>{
   final List<Board> boards = [];
 
   final TextEditingController _messageController = TextEditingController();
-  late Painter painter;
 
-  late String storedAccessToken;
-  late String storedTel;
+  String? storedAccessToken;
+  String? storedTel;
 
   bool isLoading = false;
 
+  AudioRecorderWidget recorder = const AudioRecorderWidget();
+
+  _AudioRecorderWidgetState? recorderState; // Declare the recorder variable
+
   @override
   void initState(){
-    painter = Painter(line, lines);
-    init();
     super.initState();
+    init();
   }
 
   void init() async {
     await loadUserInfoFromSharedPreferences();
-    if(storedAccessToken!= null && storedAccessToken.isNotEmpty) loadDataFromServer();
+    if(storedAccessToken!= null && storedAccessToken != '') loadDataFromServer();
   }
 
   Future<void> loadUserInfoFromSharedPreferences() async {
@@ -171,43 +244,27 @@ class _PaintUploadPage extends State<PaintUploadPage>{
     if (mounted) Navigator.pop(context);
   }
 
-  void _removePrev(){
-    lines.removeLast();
-    painter.setLines([...lines]);
-    setState(() {    });
-  }
-
-  void _removeAll(){
-    lines.clear();
-    painter.setLines([...lines]);
-    setState(() {    });
-  }
-
-  // Paint 와 message  함께 전송
-  void _sendPaint() async {
-    if(lines.isEmpty){
-      print(">>>> no lines");
-      return;
-    }
-
-    if(storedAccessToken == null || storedAccessToken.isEmpty) {
+  // Audio 와 message  함께 전송
+  void _sendAudio() async {
+    if(storedAccessToken == null || storedAccessToken == '') {
       print(">>>> not login state");
       return;
     }
 
-    String jsonData = jsonEncode(lines);
+    String? filePath =  recorderState?.getFilePath();
+    print('uploading audio file,  filepath:$filePath');
+    if(filePath == null){
+      print('uploading audio, filePath null');
+      return;
+    }
 
-    Directory appDocDir = await getApplicationDocumentsDirectory();
-    // Create the 'paint.csr' file in the app's local directory
-    File file = File('${appDocDir.path}/paint.csr');
-    await file.writeAsString(jsonData);
-
-    String strMessage= "Paint 파일";
+    String strMessage= "Audio 파일";
     if(_messageController.text.isNotEmpty) {
       strMessage = _messageController.text;
       _messageController.text = '';
     }
-    var uploader = Uploader(strMessage, storedAccessToken, storedTel, "PAINT", file.path);
+
+    var uploader = Uploader(strMessage, storedAccessToken!, storedTel!, "AUDIO", filePath);
     try {
       await uploader.upload();
       print('Upload successful');
@@ -230,45 +287,15 @@ class _PaintUploadPage extends State<PaintUploadPage>{
         body: Center(
           child: Column(
             children: [
-               ConstrainedBox(
+              ConstrainedBox(
                 constraints: const BoxConstraints(
                   minWidth: 400,
-                  minHeight: 300,
-                  maxHeight: 300,
+                  minHeight:50,
+                  maxHeight: 50,
                 ),
                 child: Container(
                   color: Colors.grey,
-                  child: GestureDetector(
-                    onPanDown: (details) {
-                      if (painter != null)  {
-                        print('on Mouse Down ${details.localPosition}');
-                        isDrawing = true;
-                        setState(() {
-                          line.add({'x': details.localPosition.dx, 'y': details.localPosition.dy});
-                        });
-                      }
-                    },
-                    onPanUpdate: (details) {
-                      if (painter != null){
-                        print('on Mouse Down ${details.localPosition}');
-                        setState(() {
-                          line.add({'x': details.localPosition.dx, 'y': details.localPosition.dy});
-                        });
-                      }
-                    },
-                    onPanEnd: (details) {
-                      if (painter != null) {
-                        lines.add([...line]);
-                        line.clear();
-                        painter.setLines([...lines]);
-                        setState(() { });
-                      }
-                    },
-                    child: CustomPaint(
-                      size: Size(400, 300),
-                      painter: painter ,
-                    ),
-                  ),
+                  child: recorder,
                 ),
               ),
               Expanded(
@@ -277,7 +304,9 @@ class _PaintUploadPage extends State<PaintUploadPage>{
                       ? const CircularProgressIndicator()
                       : BoardListView(boards: boards, onBoardTap: (int index) {
                     // Handle the tapped board index here
-                    print('Tapped board index: ${boards[index].boardId}');
+                    if (kDebugMode) {
+                      print('Tapped board index: ${boards[index].boardId}');
+                    }
                   },),
                 ),
               ),
@@ -294,7 +323,7 @@ class _PaintUploadPage extends State<PaintUploadPage>{
                       ),
                     ),
                     ElevatedButton(
-                      onPressed: _sendPaint,
+                      onPressed: _sendAudio,
                       child: const Icon(Icons.send),
                     ),
                   ],
@@ -309,15 +338,7 @@ class _PaintUploadPage extends State<PaintUploadPage>{
             children: [
               ElevatedButton(
                 onPressed: _toPrevious,
-                child: const Text('돌아가기'),
-              ),
-              ElevatedButton(
-                onPressed: _removePrev,
-                child: const Text('이전제거'),
-              ),
-              ElevatedButton(
-                onPressed: _removeAll,
-                child: const Text('모두제거'),
+                child: const Icon(Icons.arrow_back),
               ),
             ],
           ),

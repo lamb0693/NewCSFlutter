@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'constants.dart';
+
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key, required this.title});
@@ -39,7 +41,7 @@ class _LoginPage extends State<LoginPage> {
       'password': password,
     };
 
-    var response = await http.post(Uri.parse('http://10.100.203.62:8080/getToken'),
+    var response = await http.post(Uri.parse('${AppConstants.apiBaseUrl}/getToken'),
       headers: <String, String>{
         'Content-Type': 'application/json',
       },
@@ -120,11 +122,9 @@ class _LoginPage extends State<LoginPage> {
           bottomNavigationBar: BottomAppBar(
             child: Row(
               children:[
-                const Icon(Icons.access_time_filled),
-                const Icon(Icons.star),
                 ElevatedButton(
                   onPressed: _toPrevious,
-                  child: const Text('돌아가기')
+                  child: const Icon(Icons.arrow_back),
                 ),
               ],
             ),
