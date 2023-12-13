@@ -394,7 +394,7 @@ class _WebrtcPage extends State<WebrtcPage> {
   // }
 
   void  _join() async {
-    socket.emit('join_room', 'aaa');
+    socket.emit('join_room', storedTel);
     await joinWebrtc();
   }
 

@@ -17,7 +17,15 @@ import 'package:path_provider/path_provider.dart';
 
 
 class AudioRecorderWidget extends StatefulWidget {
-  const AudioRecorderWidget({super.key});
+  final void Function(String) onFilePathChanged;
+
+  const AudioRecorderWidget({
+    required this.onFilePathChanged,
+    super.key,
+  });
+
+
+  //const AudioRecorderWidget({super.key});
 
   @override
   State<AudioRecorderWidget> createState() => _AudioRecorderWidgetState();
@@ -97,6 +105,9 @@ class _AudioRecorderWidgetState extends State<AudioRecorderWidget> {
     });
     var result = await recorder?.stop();
     print( 'path saved audio ${result?.path}');
+
+    // Update the parent with the file path
+    widget.onFilePathChanged(result?.path ?? '');
   }
 
   Future<void> _playRecording() async {
@@ -161,19 +172,29 @@ class _AudioUploadPage extends State<AudioUploadPage>{
 
   bool isLoading = false;
 
-  AudioRecorderWidget recorder = const AudioRecorderWidget();
+  AudioRecorderWidget? recorder;
 
   _AudioRecorderWidgetState? recorderState; // Declare the recorder variable
+
+  String? recorderFilePath;
 
   @override
   void initState(){
     super.initState();
+    recorder = AudioRecorderWidget(onFilePathChanged: _updateRecorderFilePath);
     init();
   }
 
   void init() async {
     await loadUserInfoFromSharedPreferences();
     if(storedAccessToken!= null && storedAccessToken != '') loadDataFromServer();
+  }
+
+  void _updateRecorderFilePath(String filePath) {
+    print('>>>> _updateRecorderFilePath called $filePath');
+    setState(() {
+      recorderFilePath = filePath;
+    });
   }
 
   Future<void> loadUserInfoFromSharedPreferences() async {
@@ -251,10 +272,9 @@ class _AudioUploadPage extends State<AudioUploadPage>{
       return;
     }
 
-    String? filePath =  recorderState?.getFilePath();
-    print('uploading audio file,  filepath:$filePath');
-    if(filePath == null){
-      print('uploading audio, filePath null');
+    print('uploading audio file,  filepath:$recorderFilePath');
+    if(recorderFilePath == null || recorderFilePath!.isEmpty){
+      print('uploading audio, recorderFilePath null');
       return;
     }
 
@@ -264,7 +284,8 @@ class _AudioUploadPage extends State<AudioUploadPage>{
       _messageController.text = '';
     }
 
-    var uploader = Uploader(strMessage, storedAccessToken!, storedTel!, "AUDIO", filePath);
+    print(' >>>> uploading audio 4 variable value : $strMessage, $storedAccessToken, $storedTel, $recorderFilePath');
+    var uploader = Uploader(strMessage, storedAccessToken!, storedTel!, "AUDIO", recorderFilePath!);
     try {
       await uploader.upload();
       print('Upload successful');

@@ -18,8 +18,11 @@ import 'board.dart';
 import 'board_list_view.dart';
 import 'package:path/path.dart' as path;
 
+import 'custom_audio_dlg.dart';
 import 'custom_image_dlg.dart';
 import 'custom_paint_dlg.dart';
+
+import 'package:path_provider/path_provider.dart';
 
 void main() {
   runApp(const MyApp());
@@ -498,6 +501,105 @@ class _MyHomePageState extends State<MyHomePage> {
     return lines;
   }
 
+  void _showAudioDialog(BuildContext context, int boardId) {
+    if (storedAccessToken == null || storedAccessToken == '') {
+      if (kDebugMode) {
+        print("Show Image Dialog : $storedAccessToken");
+      }
+      return;
+    }
+
+    if (kDebugMode) {
+      print("executing download");
+    }
+    String apiUrl = '${AppConstants.apiBaseUrl}/api/board/download';
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return FutureBuilder(
+          future: _getAudioData(apiUrl, boardId),
+          builder: (BuildContext context, AsyncSnapshot<String> snapshot) {
+            if (snapshot.connectionState == ConnectionState.done) {
+              if (snapshot.hasError) {
+                if (kDebugMode) {
+                  print('Failed to download audio: ${snapshot.error}');
+                }
+                return AlertDialog(
+                  title: const Text('Error'),
+                  content: const Text('Failed to download audio.'),
+                  actions: <Widget>[
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).pop(); // Close the dialog
+                      },
+                      child: const Text('OK'),
+                    ),
+                  ],
+                );
+              } else {
+                return Dialog(
+                  child: SizedBox(
+                    height: 100,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        AudioPlayerWidget(audioData: snapshot.data!),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop(); // Close the dialog
+                          },
+                          child: const Text('OK'),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+            } else {
+              return const Center(child: CircularProgressIndicator());
+            }
+          },
+        );
+      },
+    );
+  }
+
+  Future<String> _getAudioData(String apiUrl, int boardId) async {
+    try {
+      final http.Response response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {'Authorization': 'Bearer $storedAccessToken'},
+        body: {'id': boardId.toString()},
+      );
+
+      if (response.statusCode == 200) {
+        final String filePath = await _saveAudioToFile(response.bodyBytes);
+        return filePath;
+      } else {
+        throw Exception('Failed to download audio. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error during audio download: $e');
+    }
+  }
+
+  Future<String> _saveAudioToFile(Uint8List audioData) async {
+    try {
+      final String fileName = 'audio_${DateTime.now().millisecondsSinceEpoch}.wav';
+      final Directory? appDocDir = await getExternalStorageDirectory();
+      final String? appDocPath = appDocDir?.path;
+      final String filePath = '$appDocPath/$fileName';
+
+      File file = File(filePath);
+      await file.writeAsBytes(audioData);
+
+      return filePath;
+    } catch (e) {
+      throw Exception('Error saving audio to file: $e');
+    }
+  }
+
   void logout() async{
     storedAccessToken = null;
     storedTel = null;
@@ -537,8 +639,8 @@ class _MyHomePageState extends State<MyHomePage> {
                       _showImageDialog(context, boards[index].boardId);
                     } else if(boards[index].content == 'PAINT'){
                       _showPaintDialog(context, boards[index].boardId);
-                    } else {
-
+                    } else if(boards[index].content == 'AUDIO'){
+                      _showAudioDialog(context, boards[index].boardId);
                     }
                 },),
               ),

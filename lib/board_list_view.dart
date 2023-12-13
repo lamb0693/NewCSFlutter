@@ -43,6 +43,9 @@ class _BoardListViewState extends State<BoardListView> {
       case 'PAINT':
         iconData = Icons.draw; // Replace 'icon2' with the actual icon you want to use
         break;
+      case 'AUDIO' :
+        iconData = Icons.audio_file;
+        break;
     // Add more cases as needed
       default:
         iconData = Icons.error; // Replace 'defaultIcon' with the default icon you want to use

@@ -57,6 +57,8 @@ dev_dependencies:
 
   another_audio_recorder: ^1.1.0
 
+  audioplayers: ^5.2.1
+
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
