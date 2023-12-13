@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:flutter_webrtc/flutter_webrtc.dart' ;
 import 'package:http/http.dart' as http;
+import 'package:socket_io_common/src/util/event_emitter.dart';
 
 import 'board.dart';
 import 'board_list_view.dart';
@@ -162,6 +163,7 @@ class _WebrtcPage extends State<WebrtcPage> {
       );
       print(response.body);
       loadDataFromServer();
+      socket.emit('customer_board_updated');
     }
     catch(e){
       print(e);
@@ -238,6 +240,15 @@ class _WebrtcPage extends State<WebrtcPage> {
         linesCSR = [...tempLinesCSR];
       });
     });
+
+    socket.on('csr_board_updated', (data) async {
+      if (kDebugMode) {
+        print(" >>>> on csr_board_updated $data");
+      }
+
+      loadDataFromServer();
+    });
+
   }
 
   void _removePrev() {
